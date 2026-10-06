@@ -58,12 +58,11 @@ module.
 
 Without Python: each [release](https://github.com/munzzyy/warmap/releases)
 carries a build for Linux (x86_64, glibc 2.35 or newer), Windows (x64) and
-macOS (Apple Silicon). Unpack it and run `warmap`; on Windows double-click
+macOS (Apple Silicon and Intel, as separate zips). Unpack it and run `warmap`; on Windows double-click
 `warmap.exe`, and use `warmap-cli.exe` in the same folder for the terminal
 commands. The macOS app is not signed, so the first launch is right-click,
 Open, and on recent versions a trip to System Settings, Privacy and
-Security, Open Anyway. Intel Macs and other Linux architectures use the
-pipx line above.
+Security, Open Anyway. Other Linux architectures use the pipx line above.
 
 From a checkout, `pip install -e .` gives you the same `warmap` command, and
 `bin/warmap` runs it without installing anything if PySide6 is already on

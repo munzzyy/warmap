@@ -22,6 +22,7 @@ jobs:
           - { os: ubuntu-22.04, label: linux-x86_64 }
           - { os: windows-latest, label: windows-x64 }
           - { os: macos-latest, label: macos-arm64 }
+          - { os: macos-15-intel, label: macos-x86_64 }
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

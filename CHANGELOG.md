@@ -22,8 +22,9 @@ First public release.
 - Installs with pip on Linux, macOS and Windows; data lives in each
   platform's app folder and the SD-card import knows about removable drive
   letters and /Volumes.
-- Desktop bundles for Linux, Windows and macOS that need no Python, built
-  and started by the release workflow on each platform. Windows gets a
+- Desktop bundles for Linux, Windows and macOS (Apple Silicon and Intel)
+  that need no Python, built and started by the release workflow on each
+  platform. Windows gets a
   second console binary for the terminal commands.
 - `warmap doctor` reports the install, its paths and the camera snapshot,
   and `--map` starts the map engine to prove it works.
