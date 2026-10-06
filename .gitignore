@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# runtime state, never checked in
+/tiles/
+build/
+dist/
+.claude/

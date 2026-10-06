@@ -1,0 +1,515 @@
+/* warmap mobile, the chrome that floats over the map.
+ *
+ * The palette is lifted straight from the desktop app's theme.py (bg #0d0d0d,
+ * surface #1a1a19, the cyan-teal "radar sweep" accent #1fb6c9) so the phone and
+ * the PC read as one product rather than two apps that happen to share data.
+ * The data-encoding colors (encryption buckets, record types, the violet ALPR
+ * overlay) are NOT redefined here, those live in map.js/models.py and are the
+ * same everywhere by design.
+ *
+ * Layout rule: the map is the whole window and every surface floats on top of
+ * it, inset off the notch and the home bar with env(safe-area-inset-*). That's
+ * why index.html sets viewport-fit=cover; without it those insets read 0.
+ */
+
+:root {
+  --bg: #0d0d0d;
+  --surface: #1a1a19;
+  --elevated: #242422;
+  --raised: #2e2e2c;
+  --hairline: #2c2c2a;
+  --border: rgba(255, 255, 255, 0.10);
+  --text: #ffffff;
+  --text-2: #c3c2b7;
+  --text-3: #898781;
+  --accent: #1fb6c9;
+  --accent-ink: #0d0d0d;
+  --danger: #e02424;
+  --warn: #e07b1a;
+  --alpr: #7b2fb5;
+
+  --radius: 14px;
+  --radius-sm: 10px;
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.55);
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.4);
+
+  /* Frosted panels over a moving map: the blur is what keeps text legible
+     without a solid block that hides the thing you're looking at. */
+  --glass: rgba(20, 20, 19, 0.82);
+
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+
+  --sheet-peek: 92px;
+  --tap: 44px;             /* minimum comfortable touch target */
+}
+
+:root[data-theme="light"] {
+  --bg: #f9f9f7;
+  --surface: #fcfcfb;
+  --elevated: #f0efec;
+  --raised: #e6e4dd;
+  --hairline: #e1e0d9;
+  --border: rgba(11, 11, 11, 0.10);
+  --text: #0b0b0b;
+  --text-2: #52514e;
+  --text-3: #898781;
+  --accent: #0e7a8a;
+  --accent-ink: #ffffff;
+  --glass: rgba(252, 252, 251, 0.86);
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+
+* { box-sizing: border-box; }
+
+/* A class that sets `display` beats the hidden attribute's UA style, which
+   silently leaves "hidden" panels on screen. It left the detail pane's empty
+   state stacked on top of the record it was supposed to be replaced by. */
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Kills pull-to-refresh and rubber-banding, both of which fight a map. */
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  position: fixed;   /* the page itself never scrolls; panels scroll inside */
+  inset: 0;
+  overflow: hidden;
+}
+
+/* Leaflet runs its own gesture handling; `none` stops the browser from also
+   interpreting the same pinch/pan and double-handling it. */
+#map {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  touch-action: none;
+}
+
+svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* --- top bar ----------------------------------------------------------- */
+
+.topbar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  z-index: 620;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: calc(var(--safe-t) + 8px) calc(var(--safe-r) + 10px) 8px calc(var(--safe-l) + 10px);
+  background: linear-gradient(to bottom, rgba(13,13,13,0.92), rgba(13,13,13,0));
+  pointer-events: none;   /* the gradient must not eat map drags */
+}
+:root[data-theme="light"] .topbar {
+  background: linear-gradient(to bottom, rgba(249,249,247,0.94), rgba(249,249,247,0));
+}
+.topbar > * { pointer-events: auto; }
+
+.brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.brand-mark {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
+  flex: none;
+}
+.brand-name {
+  font-weight: 650; letter-spacing: 0.2px; font-size: 17px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
+:root[data-theme="light"] .brand-name { text-shadow: none; }
+
+.topbar-status {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 11px;
+  font-size: 12.5px; font-weight: 550; color: var(--text-2);
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.chip-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--text-3); flex: none;
+}
+.chip-dot.is-live { background: #3fbf6f; box-shadow: 0 0 0 3px rgba(63,191,111,0.2); }
+.chip-dot.is-offline { background: var(--warn); }
+.chip-dot.is-error { background: var(--danger); }
+
+.icon-btn {
+  display: inline-grid; place-items: center;
+  width: var(--tap); height: var(--tap);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  color: var(--text);
+  cursor: pointer;
+  flex: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.icon-btn:active { background: var(--raised); transform: scale(0.96); }
+.icon-btn.ghost { background: transparent; border-color: transparent; }
+
+/* --- search ------------------------------------------------------------ */
+
+.searchwrap {
+  position: absolute;
+  top: calc(var(--safe-t) + 8px);
+  left: calc(var(--safe-l) + 10px);
+  right: calc(var(--safe-r) + 10px);
+  z-index: 640;
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 6px 4px 12px;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+.searchwrap[hidden] { display: none; }
+.search-icon { color: var(--text-3); flex: none; }
+#search {
+  flex: 1; min-width: 0;
+  border: 0; outline: 0; background: transparent;
+  color: var(--text);
+  /* 16px keeps iOS from zooming the viewport when the field takes focus. */
+  font-size: 16px;
+  padding: 10px 0;
+}
+#search::placeholder { color: var(--text-3); }
+
+/* --- floating map buttons ---------------------------------------------- */
+
+.fabs {
+  position: absolute;
+  right: calc(var(--safe-r) + 12px);
+  bottom: calc(var(--sheet-peek) + var(--safe-b) + 16px);
+  z-index: 610;
+  display: flex; flex-direction: column; gap: 10px;
+  transition: bottom 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.fab {
+  width: 46px; height: 46px;
+  display: grid; place-items: center;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.fab:active { transform: scale(0.94); }
+.fab.accent { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.fab.is-on { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+
+/* --- bottom sheet ------------------------------------------------------ */
+
+.sheet {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  z-index: 630;
+  display: flex; flex-direction: column;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  border-radius: 18px 18px 0 0;
+  box-shadow: var(--shadow);
+  height: 86vh;
+  /* Translated down so only the peek row shows; the drag handler and the
+     data-state attribute move it between snap points. */
+  transform: translateY(calc(100% - var(--sheet-peek) - var(--safe-b)));
+  transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  padding-bottom: var(--safe-b);
+  will-change: transform;
+}
+.sheet[data-state="half"] { transform: translateY(45%); }
+.sheet[data-state="full"] { transform: translateY(0); }
+.sheet.is-dragging { transition: none; }
+
+.sheet-grip {
+  padding: 9px 0 5px;
+  display: grid; place-items: center;
+  cursor: grab;
+  /* The grip is the one place a vertical drag belongs to the sheet rather
+     than to the map underneath it. */
+  touch-action: none;
+  flex: none;
+}
+.sheet-grip span {
+  width: 38px; height: 4px; border-radius: 999px;
+  background: var(--text-3); opacity: 0.55;
+}
+
+.sheet-peek {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 0 16px 10px;
+  flex: none;
+}
+.peek-main strong { font-size: 20px; font-weight: 680; letter-spacing: -0.2px; }
+.peek-main span { color: var(--text-2); font-size: 13px; margin-left: 3px; }
+.peek-sub { margin-left: auto; color: var(--text-3); font-size: 12.5px; text-align: right; }
+
+.tabs {
+  display: flex; gap: 2px;
+  padding: 0 10px 8px;
+  flex: none;
+  border-bottom: 1px solid var(--hairline);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  appearance: none; border: 0; background: transparent;
+  color: var(--text-3);
+  font: inherit; font-size: 13.5px; font-weight: 560;
+  padding: 8px 12px;
+  border-radius: 9px;
+  cursor: pointer; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.tab.is-active { color: var(--accent); background: color-mix(in srgb, var(--accent) 13%, transparent); }
+
+.sheet-body { flex: 1; overflow: hidden; position: relative; }
+.pane {
+  position: absolute; inset: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;   /* scrolling the list never drags the map */
+  padding: 10px 14px 22px;
+  display: none;
+}
+.pane.is-active { display: block; }
+
+/* --- lists ------------------------------------------------------------- */
+
+.list { display: flex; flex-direction: column; }
+.row {
+  display: flex; align-items: center; gap: 11px;
+  padding: 11px 6px;
+  border-bottom: 1px solid var(--hairline);
+  cursor: pointer;
+  min-height: var(--tap);
+  -webkit-tap-highlight-color: transparent;
+}
+.row:active { background: var(--elevated); }
+.row-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.row-main { flex: 1; min-width: 0; }
+.row-title {
+  font-weight: 560; font-size: 14.5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.row-sub {
+  color: var(--text-3); font-size: 12.5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.row-meta { color: var(--text-3); font-size: 12px; text-align: right; flex: none; }
+
+.more-btn {
+  width: 100%; margin-top: 12px; padding: 12px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--elevated); color: var(--text-2);
+  font: inherit; font-size: 13.5px; cursor: pointer;
+}
+
+.empty {
+  display: grid; place-items: center; gap: 10px;
+  padding: 40px 20px; color: var(--text-3); text-align: center;
+}
+.empty svg { width: 34px; height: 34px; opacity: 0.5; }
+.empty p { margin: 0; font-size: 13.5px; max-width: 260px; }
+
+/* --- detail ------------------------------------------------------------ */
+
+.detail-head { display: flex; align-items: flex-start; gap: 11px; padding: 4px 2px 12px; }
+.detail-title { font-size: 18px; font-weight: 650; line-height: 1.25; word-break: break-word; }
+.detail-kind { font-size: 12.5px; font-weight: 560; margin-top: 2px; }
+
+.kv { display: grid; grid-template-columns: minmax(96px, 38%) 1fr; gap: 7px 12px; padding: 2px; }
+.kv dt { color: var(--text-3); font-size: 12.5px; }
+.kv dd { margin: 0; font-size: 13.5px; word-break: break-word; }
+
+.note {
+  margin-top: 12px; padding: 9px 11px;
+  border-left: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border-radius: 0 8px 8px 0;
+  font-size: 12.5px; color: var(--text-2);
+}
+.note.warn { border-left-color: var(--danger); background: rgba(224,36,36,0.11); color: #ff9a9a; }
+:root[data-theme="light"] .note.warn { color: #a11; }
+
+.detail-actions { display: flex; gap: 8px; margin-top: 14px; }
+.btn {
+  flex: 1; padding: 11px; min-height: var(--tap);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--elevated); color: var(--text);
+  font: inherit; font-size: 13.5px; font-weight: 550;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.btn:active { transform: scale(0.98); }
+
+/* --- stats ------------------------------------------------------------- */
+
+.stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; margin-bottom: 16px; }
+.stat {
+  background: var(--elevated);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: 11px 12px;
+}
+.stat b { display: block; font-size: 21px; font-weight: 680; letter-spacing: -0.3px; }
+.stat span { color: var(--text-3); font-size: 12px; }
+
+.section-title {
+  font-size: 11.5px; font-weight: 640; text-transform: uppercase;
+  letter-spacing: 0.7px; color: var(--text-3);
+  margin: 18px 2px 9px;
+}
+.bar-row { display: flex; align-items: center; gap: 9px; padding: 4px 2px; }
+.bar-label { width: 92px; flex: none; font-size: 12.5px; color: var(--text-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar-track { flex: 1; height: 7px; background: var(--raised); border-radius: 999px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 999px; }
+.bar-count { width: 42px; text-align: right; font-size: 12px; color: var(--text-3); flex: none; }
+
+/* --- filters ----------------------------------------------------------- */
+
+.filter-group { margin-bottom: 6px; }
+.check {
+  display: flex; align-items: center; gap: 11px;
+  padding: 11px 4px; min-height: var(--tap);
+  border-bottom: 1px solid var(--hairline);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.check input { display: none; }
+.check-box {
+  width: 21px; height: 21px; border-radius: 6px; flex: none;
+  border: 1.6px solid var(--text-3);
+  display: grid; place-items: center;
+  transition: background 0.12s, border-color 0.12s;
+}
+.check input:checked + .check-box {
+  background: var(--accent); border-color: var(--accent);
+}
+.check-box::after {
+  content: ""; width: 10px; height: 6px;
+  border-left: 2px solid var(--accent-ink); border-bottom: 2px solid var(--accent-ink);
+  transform: rotate(-45deg) translateY(-1px); opacity: 0;
+}
+.check input:checked + .check-box::after { opacity: 1; }
+.check-label { flex: 1; font-size: 14px; }
+.check-count { color: var(--text-3); font-size: 12.5px; }
+
+/* --- menu -------------------------------------------------------------- */
+
+.scrim {
+  position: absolute; inset: 0; z-index: 700;
+  background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+}
+.scrim[hidden] { display: none; }
+
+.menu {
+  position: absolute; z-index: 710;
+  top: 0; bottom: 0; left: 0;
+  width: min(320px, 84vw);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  padding: calc(var(--safe-t) + 22px) 18px calc(var(--safe-b) + 18px);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+  animation: slide-in 0.24s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.menu[hidden] { display: none; }
+@keyframes slide-in { from { transform: translateX(-100%); } to { transform: none; } }
+
+.menu-title { margin: 0; font-size: 21px; font-weight: 680; letter-spacing: -0.2px; }
+.menu-sub { margin: 3px 0 20px; color: var(--text-3); font-size: 12.5px; }
+
+.menu-item {
+  display: flex; align-items: center; gap: 13px;
+  width: 100%; padding: 13px 10px; min-height: var(--tap);
+  margin-bottom: 4px;
+  border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: var(--text);
+  font: inherit; text-align: left; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.menu-item:active { background: var(--elevated); }
+.menu-item svg { flex: none; color: var(--accent); }
+.menu-item strong { display: block; font-size: 14.5px; font-weight: 560; }
+.menu-item small { display: block; color: var(--text-3); font-size: 12px; margin-top: 1px; }
+
+.menu-foot { margin-top: auto; padding-top: 18px; border-top: 1px solid var(--hairline); }
+.menu-foot p { margin: 0 0 5px; color: var(--text-3); font-size: 11.5px; line-height: 1.5; }
+
+/* --- toast ------------------------------------------------------------- */
+
+.toast {
+  position: absolute; z-index: 800;
+  left: 50%; transform: translateX(-50%);
+  bottom: calc(var(--sheet-peek) + var(--safe-b) + 26px);
+  max-width: min(420px, 90vw);
+  padding: 11px 16px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+  font-size: 13.5px;
+  animation: toast-in 0.2s ease;
+}
+.toast[hidden] { display: none; }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+/* --- the user's own position ------------------------------------------- */
+
+.me-dot {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #2f8fe0;
+  border: 2.5px solid #fff;
+  box-shadow: 0 0 0 2px rgba(47,143,224,0.35), 0 1px 5px rgba(0,0,0,0.5);
+}
+
+/* --- Leaflet overrides so the map chrome matches the app ---------------- */
+
+.leaflet-control-zoom,
+.leaflet-control-layers,
+.leaflet-control-attribution {
+  /* The phone has its own buttons and a menu; Leaflet's desktop controls
+     would just be small targets competing with them. */
+  display: none !important;
+}
+.leaflet-container { background: var(--bg); font: inherit; }
+
+/* The dark-basemap filter lives in map.css, shared with the desktop, so both
+   hosts tint the tiles identically. */
+
+/* map.js writes the desktop legend into #legend. On a phone the bottom sheet
+   carries that information in a readable form, so the floating legend is
+   hidden rather than left overlapping the sheet. */
+#legend { display: none !important; }
+
+/* Wider tap targets for the map's own markers. */
+.leaflet-marker-icon, .leaflet-interactive { -webkit-tap-highlight-color: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

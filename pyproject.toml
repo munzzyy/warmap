@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "warmap"
+version = "1.0.0"
+description = "A native map for wardriving and Flipper Zero captures: Marauder and WiGLE CSVs, pcaps, Bluetooth trackers, Sub-GHz, NFC and RFID files, with an ALPR camera overlay and a phone app that syncs over your own network."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE", "DATA-LICENSES.md"]
+authors = [{ name = "Cole Munz" }]
+keywords = [
+    "wardriving", "wifi", "bluetooth", "ble", "flipper-zero", "esp32-marauder",
+    "wigle", "pcap", "gps", "subghz", "nfc", "rfid", "alpr", "map", "leaflet",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: X11 Applications :: Qt",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Information Technology",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Security",
+    "Topic :: System :: Networking :: Monitoring",
+]
+dependencies = ["PySide6>=6.6"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+icons = ["Pillow>=9"]
+
+[project.scripts]
+warmap = "warmap.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/munzzyy/warmap"
+Changelog = "https://github.com/munzzyy/warmap/blob/main/CHANGELOG.md"
+Issues = "https://github.com/munzzyy/warmap/issues"
+
+[tool.setuptools]
+packages = ["warmap", "warmap.ui"]
+
+[tool.setuptools.package-data]
+warmap = [
+    "data/*.json",
+    "sample/*.csv",
+    "sample/*.gpx",
+    "sample/flipper/*/*",
+    "web/*.html",
+    "web/*.js",
+    "web/*.css",
+    "web/vendor/*/*",
+    "web/vendor/*/*/*",
+    "webapp/*",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
