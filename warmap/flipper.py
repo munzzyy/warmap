@@ -36,6 +36,8 @@ dropping every Flipper capture onto the same spot.
 
 from __future__ import annotations
 
+import math
+
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -109,6 +111,19 @@ _TIMESTAMP_PATTERNS = (
     # 2024-01-15T14-30-22 / 2024-01-15_14-30-22
     (re.compile(r"(\d{4}-\d{2}-\d{2})[T_](\d{2}-\d{2}-\d{2})"), "%Y-%m-%d%H-%M-%S"),
 )
+
+
+def _mhz(raw, digits: int) -> Optional[float]:
+    """A Flipper frequency field in MHz, or None for anything that is not a
+    finite number. An inf or nan here would reach the JSON the phone reads
+    and is rejected by every browser's parser."""
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(value):
+        return None
+    return round(value / 1_000_000.0, digits)
 
 
 def read_fff(text: str) -> tuple[dict, list[dict]]:
@@ -301,7 +316,7 @@ def _parse_subghz(path: Path, header: dict, when) -> list[Sighting]:
     freq_mhz = None
     if freq_hz:
         try:
-            freq_mhz = round(float(freq_hz) / 1_000_000.0, 5)
+            freq_mhz = _mhz(freq_hz, 5)
         except ValueError:
             freq_mhz = None
 
@@ -398,7 +413,7 @@ def _parse_ir(path: Path, header: dict, records: list[dict], when) -> list[Sight
         freq = _get(record, "frequency")
         if freq:
             try:
-                rec.frequency = round(float(freq) / 1_000_000.0, 6)
+                rec.frequency = _mhz(freq, 6)
             except ValueError:
                 pass
         out.append(rec)

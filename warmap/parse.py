@@ -106,6 +106,21 @@ _WIFI_COUNTER = re.compile(r"^\s*\d+\s*\|\s*")
 # freeze the GUI thread reading something that was never a wardrive at all.
 MAX_FILE_BYTES = 256 * 1024 * 1024
 
+# A line longer than this is not a wardrive row; it is skipped unread.
+MAX_LINE_BYTES = 64 * 1024
+
+# Rows kept from one file. A Marauder writes about one a second, so this is
+# months of continuous driving in a single file; past it the rest is dropped
+# rather than turned into memory.
+MAX_ROWS_PER_FILE = 500_000
+
+# Integer cells (channel, RSSI) past this are garbage, and a Qt item or a
+# JSON encoder would choke on them downstream.
+MAX_INT_CELL = 2_147_483_647
+
+# No wardrive format has anywhere near this many columns.
+MAX_HEADER_COLUMNS = 256
+
 
 def _clean_marauder_line(line: str) -> str:
     """Undo the two things a live ESP32Marauder wardrive does to a row on the
@@ -174,7 +189,7 @@ def _iter_rows(path: Path):
     """
     with open(path, "r", encoding="utf-8-sig", errors="replace", newline="") as f:
         for line in f:
-            if not line.strip():
+            if len(line) > MAX_LINE_BYTES or not line.strip():
                 continue
             # A NUL has no business in a text capture, and Python 3.10's csv
             # module refuses the whole line over one; later versions keep it
@@ -267,9 +282,10 @@ def _parse_int(value: Optional[str]) -> Optional[int]:
     if value is None:
         return None
     try:
-        return int(round(float(value)))
+        parsed = int(round(float(value)))
     except (ValueError, OverflowError):
         return None
+    return parsed if abs(parsed) <= MAX_INT_CELL else None
 
 
 def _row_to_sighting(row: list[str], colmap: dict[str, int]) -> Optional[Sighting]:
@@ -340,7 +356,7 @@ def _row_to_sighting(row: list[str], colmap: dict[str, int]) -> Optional[Sightin
         try:
             # Wigle writes this as a decimal Bluetooth SIG company ID, but
             # some exporters use "0x004C"; int(x, 0) takes either.
-            company_id = int(mfgrid, 0)
+            company_id = int(mfgrid, 0) if len(mfgrid) <= 8 else None
         except (TypeError, ValueError):
             company_id = None
         if company_id is not None:
@@ -403,6 +419,8 @@ def parse_file(path: Path) -> list[Sighting]:
                 return []  # metadata line only, no header/data
         else:
             header = first
+        if len(header) > MAX_HEADER_COLUMNS:
+            return []
         colmap = _map_columns(header)
         if "bssid" not in colmap or "lat" not in colmap or "lon" not in colmap:
             return []  # not a CSV shape we understand at all
@@ -445,6 +463,8 @@ def _rows_to_sightings(rows, colmap: dict[str, int], source: str) -> list[Sighti
                 sighting.meta.update(derived)
             sighting.source = source
             sightings.append(sighting)
+            if len(sightings) >= MAX_ROWS_PER_FILE:
+                break
         pending_name = None
     return sightings
 

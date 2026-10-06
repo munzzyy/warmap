@@ -26,9 +26,10 @@ def _expand_paths(paths: Iterable[str]) -> list[Path]:
     for raw in paths:
         path = Path(raw)
         if path.is_dir():
-            expanded.extend(
-                p for p in ingest.expand_paths([path]) if ingest.classify(p) != "unknown"
-            )
+            found = ingest.expand_paths([path])
+            if found.truncated:
+                print(f"{path}: bigger than warmap will walk; only the first part was read.")
+            expanded.extend(p for p in found if ingest.classify(p) != "unknown")
         else:
             expanded.append(path)
     return expanded
@@ -95,7 +96,7 @@ def cmd_stats(args) -> int:
         return 1
 
     s = stats_mod.compute_stats(deduped)
-    print(f"total access points: {s.total}")
+    print(f"total records: {s.total}")
     print(f"unique SSIDs: {s.unique_ssids}")
     print(f"open networks: {s.open_count}")
     print(f"wifi / ble: {s.wifi_count} / {s.ble_count}")
@@ -220,8 +221,12 @@ def cmd_export(args) -> int:
     skipped = len(deduped) - written
     print(f"wrote {written} record(s) to {out_path}")
     if skipped > 0:
-        print(f"{skipped} record(s) skipped: no location, and {args.format} "
-              "cannot represent a point without one")
+        if args.format == "wigle":
+            print(f"{skipped} record(s) left out: WiGLE CSV only takes measured fixes, "
+                  "and these have no location or one inferred from a track")
+        else:
+            print(f"{skipped} record(s) skipped: no location, and {args.format} "
+                  "cannot represent a point without one")
     return 0
 
 

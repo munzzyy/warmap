@@ -58,7 +58,7 @@ def check_map(timeout_seconds: float = 30.0) -> tuple[bool, str]:
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS", "--disable-gpu --no-sandbox")
     try:
-        from PySide6.QtCore import QCoreApplication, QEvent, QTimer, QUrl
+        from PySide6.QtCore import QCoreApplication, QEvent, QEventLoop, QTimer, QUrl
         from PySide6.QtWebEngineWidgets import QWebEngineView
         from PySide6.QtWidgets import QApplication
     except ImportError as exc:
@@ -66,23 +66,28 @@ def check_map(timeout_seconds: float = 30.0) -> tuple[bool, str]:
 
     app = QApplication.instance() or QApplication(sys.argv[:1])
     view = QWebEngineView()
+    loop = QEventLoop()
+    timer = QTimer()
+    timer.setSingleShot(True)
     outcome: dict = {}
 
     def finished(ok: bool) -> None:
         outcome["ok"] = ok
-        app.quit()
+        loop.quit()
 
     def timed_out() -> None:
         outcome["ok"] = False
         outcome["why"] = f"no loadFinished within {timeout_seconds:.0f} s"
-        app.quit()
+        loop.quit()
 
     view.loadFinished.connect(finished)
-    QTimer.singleShot(int(timeout_seconds * 1000), timed_out)
+    timer.timeout.connect(timed_out)
+    timer.start(int(timeout_seconds * 1000))
     view.load(QUrl.fromLocalFile(str(config.MAP_HTML)))
     view.resize(800, 600)
     view.show()
-    app.exec()
+    loop.exec()
+    timer.stop()
     view.close()
     view.deleteLater()
     QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)

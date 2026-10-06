@@ -80,25 +80,40 @@ def _unreadable(path: Path, exc: BaseException) -> str:
 MAX_WALKED = 300_000
 
 
-def expand_paths(paths: Iterable[Path]) -> list[Path]:
+class ExpandedPaths(list):
+    """The files a set of paths expands to. `truncated` is True when a cap
+    cut a directory walk short, so the caller can say so instead of letting
+    the user believe the whole folder was read."""
+
+    def __init__(self, iterable=(), truncated: bool = False):
+        super().__init__(iterable)
+        self.truncated = truncated
+
+
+def expand_paths(paths: Iterable[Path]) -> ExpandedPaths:
     """Flatten files and directories into a list of files, capped."""
     out: list[Path] = []
+    truncated = False
     for raw in paths:
         path = Path(raw)
         if path.is_dir():
             found: list[Path] = []
-            for child in BoundedWalk(path, MAX_WALKED):
+            walk = BoundedWalk(path, MAX_WALKED)
+            for child in walk:
                 found.append(child)
                 if len(out) + len(found) >= MAX_FILES:
+                    truncated = True
                     break
+            truncated = truncated or walk.truncated
             out.extend(sorted(found))
             if len(out) >= MAX_FILES:
-                return out[:MAX_FILES]
+                return ExpandedPaths(out[:MAX_FILES], truncated=True)
         elif path.is_file():
             out.append(path)
         if len(out) >= MAX_FILES:
+            truncated = True
             break
-    return out
+    return ExpandedPaths(out, truncated=truncated)
 
 
 def _head(path: Path, size: int = 2048) -> str:
@@ -175,6 +190,12 @@ def ingest_paths(
     if not files:
         result.notes.append("No files found at those paths.")
         return result
+    if files.truncated:
+        result.notes.append(
+            f"That folder is bigger than warmap will walk ({MAX_FILES:,} files or "
+            f"{MAX_WALKED:,} entries). Only the first part of it was read; point "
+            "warmap at the capture folders themselves."
+        )
 
     buckets: dict[str, list[Path]] = {"csv": [], "flipper": [], "pcap": [], "track": []}
     for path in files:

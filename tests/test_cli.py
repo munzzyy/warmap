@@ -25,7 +25,7 @@ def test_cmd_stats_prints_summary(tmp_path, capsys):
     args = cli.main(["stats", str(csv_path)])
     out = capsys.readouterr().out
     assert args == 0
-    assert "total access points: 2" in out
+    assert "total records: 2" in out
     assert "open networks: 1" in out
 
 
@@ -43,7 +43,7 @@ def test_cmd_stats_expands_a_folder(tmp_path, capsys):
     (folder / "a.csv").write_text(WIGLE_CSV)
     rc = cli.main(["stats", str(folder)])
     assert rc == 0
-    assert "total access points: 2" in capsys.readouterr().out
+    assert "total records: 2" in capsys.readouterr().out
 
 
 def test_expand_paths_leaves_plain_files_alone(tmp_path):

@@ -323,12 +323,13 @@ class _Handler(BaseHTTPRequestHandler):
                 self.close_connection = True
                 return
             if not self._request_line_carries_token(self.raw_requestline):
+                head = self.raw_requestline[:5].upper() == b"HEAD "
                 self.wfile.write(
                     b"HTTP/1.1 404 Not Found\r\n"
                     b"Content-Type: text/plain; charset=utf-8\r\n"
                     b"Content-Length: 9\r\n"
                     b"Connection: close\r\n\r\n"
-                    b"Not found"
+                    + (b"" if head else b"Not found")
                 )
                 self.wfile.flush()
                 self.close_connection = True
@@ -350,7 +351,11 @@ class _Handler(BaseHTTPRequestHandler):
         words = raw.decode("iso-8859-1").rstrip("\r\n").split()
         if len(words) < 2:
             return False
-        parts = urlsplit(words[1]).path.strip("/").split("/", 2)
+        try:
+            target = urlsplit(words[1]).path
+        except ValueError:
+            return False
+        parts = target.strip("/").split("/", 2)
         return len(parts) >= 2 and parts[0] == "s" and self.app.token_ok(parts[1])
 
     def __init__(self, *args, app: WarmapServer, **kwargs):

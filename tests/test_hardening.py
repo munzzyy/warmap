@@ -26,6 +26,12 @@ HEADER = (
 )
 
 
+def _csv(tmp_path: Path, rows: list[str]) -> Path:
+    path = tmp_path / "wardrive.csv"
+    path.write_text(HEADER + "\n".join(rows) + "\n")
+    return path
+
+
 # --- the CSV reader streams -------------------------------------------------
 
 def test_a_csv_of_padding_costs_almost_no_memory(tmp_path):
@@ -326,3 +332,83 @@ def test_gpx_times_outside_the_plausible_window_are_dropped():
     assert _parse_iso_utc("0001-01-01T00:00:00Z") is None
     assert _parse_iso_utc("9999-12-31T23:59:59Z") is None
     assert _parse_iso_utc("2026-06-14T14:00:00Z") is not None
+
+
+# --- round three -------------------------------------------------------------
+
+def test_csv_rows_past_the_ceiling_are_dropped_not_held(tmp_path, monkeypatch):
+    monkeypatch.setattr(parse, "MAX_ROWS_PER_FILE", 50)
+    rows = [f"AA:BB:CC:DD:{i >> 8:02X}:{i & 255:02X},n{i},[WPA2_PSK],2026-06-14 09:05:09,6,-57,33.449359,-112.072225,341.3,10.4,WIFI"
+            for i in range(200)]
+    parsed = parse.parse_file(_csv(tmp_path, rows))
+    assert len(parsed) == 50
+
+
+def test_a_giant_line_and_a_giant_header_are_skipped(tmp_path):
+    path = tmp_path / "wide.csv"
+    path.write_text("," * (2 * 1024 * 1024) + "\n")
+    assert parse.parse_file(path) == []
+    path.write_text(HEADER + "x" * (200 * 1024) + "\nAA:BB:CC:DD:EE:04,D,[WPA2_PSK],2026-06-14 09:05:12,6,-50,33.449359,-112.072225,341.3,10.4,WIFI\n")
+    assert [r.ssid for r in parse.parse_file(path)] == ["D"]
+
+
+def test_integer_cells_beyond_what_a_widget_takes_become_unknown(tmp_path):
+    rows = ["AA:BB:CC:DD:EE:01,A,[WPA2_PSK],2026-06-14 09:05:09,9223372036854775808,-57,33.449359,-112.072225,341.3,10.4,WIFI",
+            "AA:BB:CC:DD:EE:02,B,[WPA2_PSK],2026-06-14 09:05:09,6,1e19,33.449359,-112.072225,341.3,10.4,WIFI"]
+    parsed = {r.ssid: r for r in parse.parse_file(_csv(tmp_path, rows))}
+    assert parsed["A"].channel is None
+    assert parsed["B"].rssi == 0 or parsed["B"].rssi is None or abs(parsed["B"].rssi) <= parse.MAX_INT_CELL
+
+
+def test_a_huge_hex_mfgrid_does_not_poison_the_store(tmp_path):
+    header = ("WigleWifi-1.6,appRelease=2.8,model=Pixel\n"
+              "MAC,SSID,AuthMode,FirstSeen,Channel,Frequency,RSSI,CurrentLatitude,CurrentLongitude,"
+              "AltitudeMeters,AccuracyMeters,RCOIs,MfgrId,Type\n")
+    path = tmp_path / "w16.csv"
+    path.write_text(header + "d4:ad:fc:0a:1b:2c,,[BLE],2026-06-14 09:05:09,0,2402,-60,33.449359,-112.072225,341.3,10.4,,0x"
+                    + "f" * 5000 + ",BLE\n")
+    (record,) = parse.parse_file(path)
+    assert "company_id" not in record.meta
+    json.dumps(record.to_dict())
+
+
+def test_a_malformed_request_target_is_a_404_not_a_traceback(bridge):
+    _, info = bridge
+    with socket.create_connection(("127.0.0.1", info.port)) as sock:
+        sock.sendall(b"GET //[::1 HTTP/1.1\r\nHost: x\r\n\r\n")
+        reply = _recv_until_close(sock)
+    assert reply.startswith(b"HTTP/1.1 404")
+
+
+def test_an_early_404_to_head_carries_no_body(bridge):
+    _, info = bridge
+    with socket.create_connection(("127.0.0.1", info.port)) as sock:
+        sock.sendall(b"HEAD /s/wrong/ HTTP/1.1\r\n")
+        reply = _recv_until_close(sock)
+    assert reply.startswith(b"HTTP/1.1 404") and reply.endswith(b"\r\n\r\n")
+
+
+def test_a_cut_short_walk_is_reported_in_the_import_notes(tmp_path, monkeypatch):
+    monkeypatch.setattr(ingest, "MAX_FILES", 3)
+    for i in range(10):
+        (tmp_path / f"{i}.sub").write_text("Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\nProtocol: Princeton\nBit: 24\nKey: 00 00 00 00 00 12 34 56\n")
+    found = ingest.expand_paths([tmp_path])
+    assert len(found) == 3 and found.truncated
+    result = ingest.ingest_paths([tmp_path])
+    assert any("bigger than warmap will walk" in n for n in result.notes)
+
+
+def test_a_non_finite_flipper_frequency_is_unknown_and_the_json_stays_valid(tmp_path):
+    path = tmp_path / "odd.sub"
+    path.write_text("Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: inf\nProtocol: Princeton\nBit: 24\nKey: 00 00 00 00 00 12 34 56\n")
+    (record,) = flipper.parse_flipper_file(path)
+    assert record.frequency is None
+    json.loads(json.dumps(record.to_dict(), allow_nan=False))
+
+
+def test_the_map_engine_check_can_run_twice_in_one_process():
+    from warmap import doctor
+
+    ok1, _ = doctor.check_map(timeout_seconds=30)
+    ok2, _ = doctor.check_map(timeout_seconds=30)
+    assert ok1 and ok2

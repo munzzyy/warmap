@@ -5,34 +5,43 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776ab.svg)](pyproject.toml)
 [![Linux, macOS, Windows](https://img.shields.io/badge/runs%20on-Linux%20%7C%20macOS%20%7C%20Windows-555.svg)](#install)
 
-A native map for everything you can capture in the field: wardriving CSVs off
-an ESP32 Marauder, Bluetooth advertisements, packet captures, and every kind
-of file a Flipper Zero saves to its SD card (Sub-GHz, NFC, 125 kHz RFID,
-iButton and infrared).
+**A native map for wardriving and Flipper Zero captures. Offline, on your
+machine, no account.**
 
-Point it at a folder and it plots the lot on a real map, clustered, colored by
-what matters for each technology, with a heatmap, a filter panel, a sortable
-records table and a stats panel. Import is additive, so the map keeps growing
-every time you go out with the board. It also carries an overlay of 137,000
-license-plate readers, so you can see which cameras you drove past, and it
-hands the whole thing to your phone over your own Wi-Fi with a QR code.
+Point it at a folder of captures and it plots the lot on a real map: wardrive
+CSVs off an ESP32 Marauder or the WiGLE app, Bluetooth advertisements,
+packet captures, and every kind of file a Flipper Zero saves (Sub-GHz, NFC,
+125 kHz RFID, iButton and infrared). Clustered, colored by what matters for
+each technology, with a heatmap, a filter panel, a sortable records table
+and a stats panel. Import is additive, so the map keeps growing every time
+you go out with the board.
 
-There is no account and nothing phones home. The only network traffic is
-map tiles, and those are cached.
+![The map with clustered Wi-Fi markers colored by encryption, Flipper captures drawn as glyphs along a dashed GPS track, a violet camera marker, the legend, and the stats panel](docs/hero.png)
 
-<p align="center">
-  <img src="docs/screenshot.png" width="100%" alt="The warmap window: a dark map with clustered Wi-Fi markers colored by encryption, Flipper captures drawn as glyphs along a GPS track, violet camera markers with facing wedges, the filter panel on the left, the stats panel on the right and the records table along the bottom">
-</p>
+Three things it does that the other tools don't. A Flipper file has no
+coordinates, but a Marauder wardrive from the same walk is a GPS log, so
+warmap places each `.sub` or `.nfc` by its timestamp against that track,
+with nothing extra to carry ([how placement works](#placing-flipper-captures-on-the-map)).
+It overlays about 137,000 license-plate readers compiled by DeFlock from
+OpenStreetMap, each with a wedge for the way it faces, and counts the ones
+within 500 m of your route ([the camera overlay](#flock--alpr-cameras)). And
+it hands the same map to your phone from a QR code over your own Wi-Fi, or
+as one HTML file that works with the PC off ([on your phone](#on-your-phone)).
+
+If you already use WiGLE or Kismet: WiGLE is upload-then-browse on someone
+else's server, and Kismet is live capture with its own web UI and no idea
+what a Flipper file is. warmap is offline post-processing of files you
+already have, with the Flipper, pcap and tracker side that neither covers.
+The only network traffic it makes on its own is map tiles, and those are
+cached; the two refresh commands fetch only when you run them.
+
+Contents: [Install](#install) · [Getting data onto it](#getting-data-onto-it) ·
+[Placing Flipper captures](#placing-flipper-captures-on-the-map) ·
+[What it shows](#what-it-shows) · [Trackers](#trackers-and-things-that-travelled-with-you) ·
+[Cameras](#flock--alpr-cameras) · [Phone](#on-your-phone) · [Privacy](#privacy) ·
+[CLI](#cli) · [Tests](#tests) · [Limitations](#limitations-honestly) · [Roadmap](#roadmap)
 
 ## Install
-
-Download a build from the [releases page](https://github.com/munzzyy/warmap/releases/latest):
-a tarball for Linux, a zip for Windows and a zip with `warmap.app` for
-macOS. No Python needed. Unpack it and run `warmap` (double-click
-`warmap.exe` on Windows; the folder also holds `warmap-cli.exe` for the
-terminal commands). The macOS app is not signed, so the first launch is
-right-click, Open, and on recent versions a trip to System Settings,
-Privacy and Security, Open Anyway.
 
 With Python 3.10 or newer:
 
@@ -41,9 +50,20 @@ pipx install git+https://github.com/munzzyy/warmap
 warmap
 ```
 
-`pip install git+https://github.com/munzzyy/warmap` works too. The one
-dependency is PySide6, which brings Qt WebEngine for the map (a 150 MB
-download the first time). Node is only needed to run one test module.
+The window opens on a bundled sample session, so that is a one-minute look
+at everything below. `pip install git+https://github.com/munzzyy/warmap`
+works too. The one dependency is PySide6, which brings Qt WebEngine for the
+map (a 150 MB download the first time). Node is only needed to run one test
+module.
+
+Without Python: each [release](https://github.com/munzzyy/warmap/releases)
+carries a build for Linux (x86_64, glibc 2.35 or newer), Windows (x64) and
+macOS (Apple Silicon). Unpack it and run `warmap`; on Windows double-click
+`warmap.exe`, and use `warmap-cli.exe` in the same folder for the terminal
+commands. The macOS app is not signed, so the first launch is right-click,
+Open, and on recent versions a trip to System Settings, Privacy and
+Security, Open Anyway. Intel Macs and other Linux architectures use the
+pipx line above.
 
 From a checkout, `pip install -e .` gives you the same `warmap` command, and
 `bin/warmap` runs it without installing anything if PySide6 is already on
@@ -60,7 +80,7 @@ map engine to prove it works. If something is off on yours,
 First run loads a bundled sample session: a wardrive CSV, the GPS track
 recorded alongside it, and a folder of Flipper captures, with a banner saying
 so. The sample includes captures that only appear because the track placed
-them, so you can watch that mechanism work rather than take my word for it.
+them, so the mechanism is on screen before you've imported anything.
 Import anything real and the sample goes for good. It never mixes with your
 data and is never written to the store.
 
@@ -118,9 +138,10 @@ against it, with no extra equipment and nothing to configure.
 
 If you'd rather have a proper track, since denser points mean tighter
 placement, load a `.nmea` or `.gpx` alongside the captures and that gets
-used instead. Any phone GPS-logger app that exports GPX will do. A rebuilt
-track draws dashed on the map, because its points only exist where the
-wardrive happened to see something.
+used instead. Any phone GPS-logger app that exports GPX will do; GPSLogger
+on Android (on F-Droid) and Open GPX Tracker on iOS are two free ones. A
+rebuilt track draws dashed on the map, because its points only exist where
+the wardrive happened to see something.
 
 A position worked out that way is an inference, not a measurement, and
 warmap never pretends otherwise. Those markers are drawn dashed and
@@ -136,8 +157,8 @@ submitted as a measured one is bad data in someone else's database as well as
 your own.
 
 Two things to know. Copying with plain `cp` destroys the timestamps: it
-rewrites every mtime to the moment of the copy, and then nothing can be
-placed. Use `cp -p` or `rsync -a`. warmap detects the signature of this (a
+rewrites every mtime to the moment of the copy, and after that nothing
+places. Use `cp -p` or `rsync -a`. warmap detects the signature of this (a
 pile of files all modified seconds ago) and tells you rather than dropping
 everything on one spot.
 
@@ -153,16 +174,20 @@ tolerance and corrects for a Flipper whose clock was wrong.
 
 ## What it shows
 
+<p align="center">
+  <img src="docs/screenshot.png" width="100%" alt="The whole warmap window: the filter panel on the left, the map in the middle with its legend, the stats panel on the right and the records table along the bottom, showing the sample session">
+</p>
+
 Wi-Fi is colored by encryption: red for open, orange for WEP, green for any
 WPA flavor, gray for unclassifiable. Sub-GHz is colored by something more
 useful, whether the code is fixed or rolling. A fixed code is the same on
 every press, so a capture of one replays; a rolling code changes each press
 and a recorded one is normally spent. Those are not the same finding and the
 map doesn't draw them the same. Everything else is colored by type, and the
-Flipper types get a glyph marker so you can tell an NFC card from an iButton
-without opening anything.
+Flipper types get a glyph marker, so an NFC card and an iButton look
+different at a glance.
 
-Packet captures add something a wardrive CSV can't: Wi-Fi clients. A probe
+Packet captures add Wi-Fi clients, which a wardrive CSV never has. A probe
 request is a device asking for a network by name, so a capture from
 Marauder's probe-sniffing mode maps the phones and laptops that went past and
 the networks they remember being on. They get their own record type, because
@@ -184,10 +209,10 @@ sortable by any column. It's also the only place records with no location
 show up at all, which matters because a capture that couldn't be matched to
 a track is still a real capture.
 
-The filter panel narrows what's plotted: free-text search across names,
-addresses, vendors and decoded fields; per-type, per-encryption, per-band and
-per-channel checkboxes, a minimum-signal slider and a minimum-times-seen
-spinner, plus quick toggles for open networks, Bluetooth trackers, randomized
+The filter panel narrows what's plotted. There is free-text search across
+names, addresses, vendors and decoded fields, checkboxes for type,
+encryption, band and channel, a minimum-signal slider and a minimum-times-seen
+spinner. Quick toggles cover open networks, Bluetooth trackers, randomized
 addresses and mapped-only.
 
 The stats panel always reflects the filtered set: counts by type, band and
@@ -258,9 +283,7 @@ data, with a touch UI over it: a bottom sheet instead of popups, a filter
 pane, search, and your own position on the map. There is nothing to install
 from a store and no account.
 
-<p align="center">
-  <img src="docs/phone.png" width="100%" alt="The phone app in three screens: the map with clustered markers and the camera overlay, the bottom sheet with the record count and tabs, and the filter pane">
-</p>
+![The phone app in three screens: the map with clustered markers and the camera overlay, the bottom sheet with the record count and tabs, and the filter pane](docs/phone.png)
 
 Two ways to get your data onto it, for two different situations.
 
@@ -322,9 +345,12 @@ vendored under `warmap/web/vendor/`. No CDN, no JS fetched at runtime.
 
 The phone bridge is the one piece that accepts a connection from another
 device. It is off until you open the dialog, read-only, answers 404 to
-anything without the per-run token, serves a fixed list of files, and
-refuses tile coordinates that don't name a real tile. The docstring at the
-top of `warmap/server.py` spells out each of those.
+anything without the per-run token before it reads a single header, holds at
+most 32 connections, serves a fixed list of files, and refuses tile
+coordinates that don't name a real tile. It listens on every interface of
+the machine, which on a laptop means whatever network you are on at the
+time, so the dialog says so before you scan. The docstring at the top of
+`warmap/server.py` spells out each of those.
 
 ## How it's built
 
@@ -371,7 +397,7 @@ pip install -e ".[dev]"
 python3 -m pytest -q
 ```
 
-802 tests, all offline and no hardware needed. Parser edge cases (empty
+811 tests, all offline and no hardware needed. Parser edge cases (empty
 files, header-only files, missing and zero-zero coordinates, malformed rows,
 comma-embedded SSIDs, CRLF); dedup semantics; NMEA checksums and coordinate
 conversion against the documented example sentences; track interpolation and
@@ -436,9 +462,10 @@ decoded per interface, and any it can't read is called out instead of
 dropped.
 
 Capture files over 256 MB are refused, and Flipper files over 16 MB, because
-the whole file is read into memory before anything is parsed. That's low
-enough to be worth knowing about and high enough that no real capture hits
-it.
+a Flipper file is read into memory before anything is parsed. A CSV is read
+line by line, keeps at most 500,000 rows, and skips any line over 64 KB. A
+folder import stops after 20,000 files or 300,000 directory entries and says
+so. None of those numbers is within reach of a real capture.
 
 Timestamp-based placement is only as good as the two clocks agreeing. If the
 Flipper's RTC has drifted, everything lands in the wrong place, consistently
@@ -452,7 +479,7 @@ The area figure in the stats panel is a bounding-box rectangle, not the
 shape of the route. A long thin drive and a compact grid covering the same
 box report the same area.
 
-Dark theme only.
+The desktop window is dark only. The phone app has a light theme too.
 
 ## Roadmap
 

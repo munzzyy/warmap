@@ -10,3 +10,14 @@ venv/
 build/
 dist/
 .claude/
+
+# scratch captures and exports dropped at the root while testing
+/*.sub
+/*.csv
+/*.txt
+/*.pcap
+/*.pcapng
+/*.html
+/*.gpx
+/*.kml
+/*.geojson
