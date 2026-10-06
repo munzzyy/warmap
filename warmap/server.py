@@ -147,6 +147,9 @@ class _BoundedServer(ThreadingHTTPServer):
     blocks; a connection past the limit is closed at once."""
 
     daemon_threads = True
+    # A phone loading tiles opens a burst of connections at once, and Windows
+    # refuses rather than queues anything past the listen backlog.
+    request_queue_size = 2 * MAX_CONNECTIONS
 
     def __init__(self, *args, max_connections: int = MAX_CONNECTIONS, **kwargs):
         super().__init__(*args, **kwargs)

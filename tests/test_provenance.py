@@ -194,7 +194,7 @@ def test_readme_test_count_matches_reality():
     import subprocess
     result = subprocess.run(
         [sys.executable, "-m", "pytest", "--collect-only", "-q"],
-        cwd=str(config.REPO_ROOT), capture_output=True, text=True, timeout=300,
+        cwd=str(config.REPO_ROOT), capture_output=True, encoding="utf-8", timeout=300,
     )
     collected = re.search(r"^(\d+) tests? collected", result.stdout, re.MULTILINE)
     assert collected, f"could not read the collected count:\n{result.stdout[-800:]}"

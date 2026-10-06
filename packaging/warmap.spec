@@ -7,11 +7,13 @@
 # them. Qt WebEngine's helper process, resources and locales come along via
 # PyInstaller's own PySide6 hooks.
 
+import re
 import sys
 from pathlib import Path
 
 ROOT = Path(SPECPATH).resolve().parent
 PACKAGE = ROOT / "warmap"
+VERSION = re.search(r'__version__ = "([^"]+)"', (PACKAGE / "__init__.py").read_text(encoding="utf-8")).group(1)
 
 # Listed by walking the package rather than importing it, so the build does
 # not depend on warmap being installed in the environment that runs it.
@@ -78,7 +80,7 @@ if sys.platform == "darwin":
         icon=icon,
         bundle_identifier="dev.munzzyy.warmap",
         info_plist={
-            "CFBundleShortVersionString": "1.0.0",
+            "CFBundleShortVersionString": VERSION,
             "NSHighResolutionCapable": True,
             "LSMinimumSystemVersion": "12.0",
         },

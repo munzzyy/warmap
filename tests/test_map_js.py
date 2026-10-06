@@ -48,7 +48,7 @@ def run_map(features, track=None, actions=None, tmp_path=None, viewport=None,
     path.write_text(json.dumps(scenario), encoding="utf-8")
     proc = subprocess.run(
         [NODE, str(RUNNER), str(path)],
-        capture_output=True, text=True, timeout=120,
+        capture_output=True, encoding="utf-8", timeout=120,
     )
     assert proc.returncode == 0, f"runner crashed: {proc.stderr}"
     return json.loads(proc.stdout)

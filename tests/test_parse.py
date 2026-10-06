@@ -562,7 +562,7 @@ def test_truncated_mid_quoted_field_keeps_the_complete_rows_before_it(tmp_path):
 # --- encoding robustness ----------------------------------------------------
 
 def test_nul_byte_in_a_field_does_not_crash_or_drop_other_rows(tmp_path):
-    path = tmp_path / "nul.csv"
+    path = tmp_path / "nul-byte.csv"
     with open(path, "wb") as f:
         f.write(WIGLE_HEADER.encode())
         f.write(COLUMN_HEADER.encode())
