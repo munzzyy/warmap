@@ -176,7 +176,10 @@ def _iter_rows(path: Path):
         for line in f:
             if not line.strip():
                 continue
-            cleaned = _clean_marauder_line(line)
+            # A NUL has no business in a text capture, and Python 3.10's csv
+            # module refuses the whole line over one; later versions keep it
+            # inside the field. Dropping it reads the same row everywhere.
+            cleaned = _clean_marauder_line(line.replace("\x00", ""))
             try:
                 yield next(csv.reader([cleaned]), [])
             except csv.Error:
