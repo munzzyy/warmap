@@ -170,7 +170,7 @@ def to_kml(sightings: Iterable[Sighting]) -> str:
         lines.append(f"<Folder><name>{escape(record_type)} ({len(group)})</name>")
         for s in group:
             description = "\n".join(
-                f"{k}: {v}" for k, v in s.to_dict().items()
+                f"{k}: {v}" for k, v in public_dict(s).items()
                 if v not in (None, "", {}) and k not in ("lat", "lon")
             )
             lines.append("  <Placemark>")

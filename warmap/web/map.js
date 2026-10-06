@@ -427,6 +427,7 @@
     tx_power: "TX power",
     pdu_type: "PDU type",
     probing_for: "Networks it asked for",
+    probing_for_more: "More networks asked for",
     frame_type: "Frame",
     mac_randomized: "Randomized MAC",
     services: "Services",

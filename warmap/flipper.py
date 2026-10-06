@@ -126,7 +126,7 @@ def read_fff(text: str) -> tuple[dict, list[dict]]:
     current: Optional[dict] = None
 
     def finish(parts: dict) -> dict:
-        return {key: " ".join(values).strip() for key, values in parts.items()}
+        return {key: " ".join(v for v in values if v) for key, values in parts.items()}
 
     for raw_line in text.splitlines():
         line = raw_line.strip()

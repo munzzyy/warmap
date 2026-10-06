@@ -38,7 +38,7 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 from warmap.models import GEO_DIRECT, GEO_NONE, GEO_TRACK, RADIO_TYPES, Sighting
-from warmap.stats import parse_first_seen
+from warmap.stats import MAX_PLAUSIBLE_CAPTURE, MIN_PLAUSIBLE_CAPTURE, parse_first_seen
 
 TRACK_EXTENSIONS = {".nmea", ".gpx", ".log", ".txt"}
 
@@ -309,12 +309,14 @@ def _parse_iso_utc(value: str) -> Optional[datetime]:
         parsed = datetime.fromisoformat(text)
     except ValueError:
         return None
-    if parsed.tzinfo is None:
-        return parsed
-    try:
-        return parsed.astimezone().replace(tzinfo=None)
-    except (OSError, OverflowError, ValueError):
+    if parsed.tzinfo is not None:
+        try:
+            parsed = parsed.astimezone().replace(tzinfo=None)
+        except (OSError, OverflowError, ValueError):
+            return None
+    if not MIN_PLAUSIBLE_CAPTURE <= parsed < MAX_PLAUSIBLE_CAPTURE:
         return None
+    return parsed
 
 
 def parse_track_file(path: Path) -> list[TrackPoint]:
@@ -448,7 +450,7 @@ class Track:
             "type": "Feature",
             "geometry": {"type": "LineString", "coordinates": coords},
             "properties": {
-                "source": self.source,
+                "source": Path(self.source).name if self.source else "",
                 "derived": self.derived,
                 "points": len(self.points),
                 "distance_km": round(self.distance_km(), 3),

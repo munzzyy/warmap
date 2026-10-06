@@ -371,7 +371,7 @@ pip install -e ".[dev]"
 python3 -m pytest -q
 ```
 
-795 tests, all offline and no hardware needed. Parser edge cases (empty
+802 tests, all offline and no hardware needed. Parser edge cases (empty
 files, header-only files, missing and zero-zero coordinates, malformed rows,
 comma-embedded SSIDs, CRLF); dedup semantics; NMEA checksums and coordinate
 conversion against the documented example sentences; track interpolation and

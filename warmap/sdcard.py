@@ -15,6 +15,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from warmap.walk import BoundedWalk
+
 # Where a Linux desktop mounts removable media. $USER is resolved at call
 # time (not import time) so tests can override it cleanly via the `user`
 # parameter instead of monkeypatching the environment. This is udisks2's
@@ -197,7 +199,6 @@ def scan_removable_media(
         if len(found) >= _MAX_RESULTS:
             truncated = True
             break
-        visited = 0
         try:
             # Not `sorted(root.rglob("*"))`: sorted() has to exhaust the
             # generator before yielding anything, which means the caps below
@@ -208,18 +209,11 @@ def scan_removable_media(
             # a cap truncates a single root, so which specific files survive
             # is already the "this probably isn't a capture card" case, where
             # exactly which extras got dropped isn't a promise worth keeping).
-            for path in root.rglob("*"):
-                visited += 1
-                if visited > _MAX_SCANNED_PER_ROOT:
-                    truncated = True
-                    break  # this root only; a huge unrelated mount elsewhere
-                            # shouldn't stop a different, smaller one from
-                            # being scanned fully
+            walk = BoundedWalk(root, _MAX_SCANNED_PER_ROOT)
+            for path in walk:
                 if len(found) >= _MAX_RESULTS:
                     truncated = True
                     break
-                if not path.is_file():
-                    continue
                 suffix = path.suffix.lower()
                 if suffix in CAPTURE_EXTENSIONS:
                     pass
@@ -237,6 +231,8 @@ def scan_removable_media(
                     continue
                 seen.add(key)
                 found.append(path)
+            if walk.truncated:
+                truncated = True
         except OSError:
             continue
 
