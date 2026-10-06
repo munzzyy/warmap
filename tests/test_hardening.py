@@ -242,3 +242,87 @@ def test_wrong_typed_geometry_skips_the_feature_not_the_refresh():
     records, dropped = alpr_fetch.build_records_from_deflock(json.loads(payload))
     assert len(records) == 1
     assert alpr_fetch.build_records_from_overpass({"elements": [{"type": "way", "id": 1, "center": "x", "tags": {}}]}) == []
+
+
+# --- round two: what the skeptics got past ----------------------------------
+
+def test_a_non_object_json_root_is_a_failed_source_not_a_traceback():
+    for body in (b"[]", b"null", b'"features"', b"1", b'{"features":' + b"[" * 100_000 + b"]" * 100_000 + b"}"):
+        with pytest.raises(alpr_fetch.FetchError):
+            alpr_fetch.fetch_from_deflock(http_get=lambda url, body=body: body)
+
+
+def test_an_oversized_integer_coordinate_is_skipped():
+    huge = "1" + "0" * 400
+    payload = json.loads('{"features": [{"geometry": {"type": "Point", "coordinates": [%s, 33.4]}, "properties": {}}]}' % huge)
+    records, dropped = alpr_fetch.build_records_from_deflock(payload)
+    assert records == []
+
+
+def test_kml_and_the_track_payload_carry_file_names_only(tmp_path):
+    from warmap import gps
+
+    s = _sighting("/home/someone/secret-project/wardrive_0.txt")
+    kml = export.to_kml([s])
+    assert "wardrive_0.txt" in kml and "secret-project" not in kml
+    track = gps.Track([gps.TrackPoint(lat=33.44, lon=-112.07, when=datetime(2026, 6, 14, 9, 0, 0)),
+                       gps.TrackPoint(lat=33.45, lon=-112.08, when=datetime(2026, 6, 14, 9, 1, 0))],
+                      source="/home/someone/secret-project/track.gpx")
+    assert track.to_geojson()["properties"]["source"] == "track.gpx"
+
+
+def test_a_flat_folder_of_many_files_stops_at_the_ceiling(tmp_path, monkeypatch):
+    import os
+
+    from warmap.walk import BoundedWalk
+
+    for i in range(3_000):
+        (tmp_path / f"{i:05d}.sub").write_bytes(b"")
+    seen = {"entries": 0}
+    real_scandir = os.scandir
+
+    class Counting:
+        def __init__(self, it):
+            self.it = it
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            self.it.close()
+
+        def __iter__(self):
+            for entry in self.it:
+                seen["entries"] += 1
+                yield entry
+
+    monkeypatch.setattr(os, "scandir", lambda p: Counting(real_scandir(p)))
+    walk = BoundedWalk(tmp_path, 500)
+    found = list(walk)
+    assert len(found) == 500 and walk.truncated
+    assert seen["entries"] <= 501
+
+
+def test_empty_repeated_values_do_not_leave_double_spaces():
+    header, _ = flipper.read_fff("Key: a\nKey:\nKey: b\n")
+    assert header["Key"] == "a b"
+
+
+def test_a_silent_connection_is_let_go_after_the_preauth_timeout(bridge, monkeypatch):
+    from warmap import server as server_mod
+
+    monkeypatch.setattr(server_mod._Handler, "preauth_timeout", 0.5)
+    _, info = bridge
+    started = time.perf_counter()
+    with socket.create_connection(("127.0.0.1", info.port)) as sock:
+        sock.settimeout(3)
+        assert sock.recv(1) == b""
+    assert time.perf_counter() - started < 2.5
+
+
+def test_gpx_times_outside_the_plausible_window_are_dropped():
+    from warmap.gps import _parse_iso_utc
+
+    assert _parse_iso_utc("0001-01-01T00:00:00Z") is None
+    assert _parse_iso_utc("9999-12-31T23:59:59Z") is None
+    assert _parse_iso_utc("2026-06-14T14:00:00Z") is not None

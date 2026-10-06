@@ -293,6 +293,10 @@ class _Handler(BaseHTTPRequestHandler):
     # never finish sending a request (deliberately or because a phone walked
     # out of wifi range mid-request) would sit there indefinitely.
     timeout = 30
+    # Until the request line has shown the token, a connection gets this long
+    # to say anything at all. It keeps a silent socket from holding one of
+    # the MAX_CONNECTIONS slots for the full timeout above.
+    preauth_timeout = 5
     # Keep-alive: a phone loading the app pulls the shell, the data and a lot
     # of tiles, and a fresh TCP handshake for each is the slowest part of that
     # over wifi. Safe here because every response goes out with an accurate
@@ -306,7 +310,9 @@ class _Handler(BaseHTTPRequestHandler):
         after one line; only a holder of the token gets this machine to parse
         anything further."""
         try:
+            self.connection.settimeout(self.preauth_timeout)
             self.raw_requestline = self.rfile.readline(65537)
+            self.connection.settimeout(self.timeout)
             if len(self.raw_requestline) > 65536:
                 self.requestline = ""
                 self.request_version = ""

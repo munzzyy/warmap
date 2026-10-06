@@ -313,6 +313,7 @@
     code_type_label: "Code type", band: "Band", frequency_note: "Typically",
     preset_label: "Modulation", technology: "Technology", uid_bytes: "UID bytes",
     services: "Services", probing_for: "Asked for networks",
+    probing_for_more: "More networks asked for",
     geo_match_seconds: "Track match (s off)", mac_randomized: "Randomized MAC",
   };
 

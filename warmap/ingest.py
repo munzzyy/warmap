@@ -22,6 +22,7 @@ from typing import Iterable
 from warmap import flipper, gps, parse, pcap
 from warmap.gps import Track
 from warmap.models import GEO_NONE
+from warmap.walk import BoundedWalk
 
 # A folder walk stops here rather than trying to read an entire filesystem
 # someone pointed at it by accident.
@@ -86,18 +87,10 @@ def expand_paths(paths: Iterable[Path]) -> list[Path]:
         path = Path(raw)
         if path.is_dir():
             found: list[Path] = []
-            walked = 0
-            try:
-                for child in path.rglob("*"):
-                    walked += 1
-                    if walked > MAX_WALKED:
-                        break
-                    if child.is_file():
-                        found.append(child)
-                    if len(out) + len(found) >= MAX_FILES:
-                        break
-            except OSError:
-                pass
+            for child in BoundedWalk(path, MAX_WALKED):
+                found.append(child)
+                if len(out) + len(found) >= MAX_FILES:
+                    break
             out.extend(sorted(found))
             if len(out) >= MAX_FILES:
                 return out[:MAX_FILES]

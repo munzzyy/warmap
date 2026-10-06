@@ -187,7 +187,7 @@ def _coord(lat, lon) -> Optional[tuple[float, float]]:
     try:
         lat = float(lat)
         lon = float(lon)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
     if not (math.isfinite(lat) and math.isfinite(lon)):
         return None
@@ -242,7 +242,7 @@ def _direction_string(props: dict) -> str:
 def build_records_from_deflock(geojson: dict) -> tuple[list[dict], int]:
     """DeFlock bulk GeoJSON -> snapshot records, plus the count dropped as
     pollution. Pure, so it can be tested against a canned file."""
-    features = geojson.get("features")
+    features = geojson.get("features") if isinstance(geojson, dict) else None
     if not isinstance(features, list):
         raise FetchError("DeFlock export had no 'features' array")
     records: list[dict] = []
@@ -296,7 +296,7 @@ def build_records_from_deflock(geojson: dict) -> tuple[list[dict], int]:
 
 def build_records_from_overpass(overpass_json: dict) -> list[dict]:
     """Overpass `{"elements": [...]}` -> snapshot records (fallback path)."""
-    elements = overpass_json.get("elements")
+    elements = overpass_json.get("elements") if isinstance(overpass_json, dict) else None
     if not isinstance(elements, list):
         raise FetchError("Overpass response had no 'elements' array")
     records: list[dict] = []
@@ -359,8 +359,7 @@ def fetch_from_deflock(http_get: Callable[[str], bytes] = _http_get) -> FetchRes
             raw = http_get(url)
             geojson = json.loads(_decode_body(raw))
             recs, dr = build_records_from_deflock(geojson)
-        except (urllib.error.URLError, OSError, TimeoutError, ValueError,
-                FetchError) as exc:
+        except Exception as exc:  # noqa: BLE001, a bad body is a failed source, never a traceback
             errors.append(f"{label} ({url}): {exc}")
             continue
         # US and Canada can in principle both list a border camera; dedup by id
@@ -399,8 +398,7 @@ def fetch_from_overpass(
             raw = http_post(url, OVERPASS_QUERY)
             payload = json.loads(raw.decode("utf-8"))
             cameras = build_records_from_overpass(payload)
-        except (urllib.error.URLError, OSError, TimeoutError, ValueError,
-                FetchError) as exc:
+        except Exception as exc:  # noqa: BLE001, a bad body is a failed source, never a traceback
             errors.append(f"{url}: {exc}")
             continue
         if len(cameras) < MIN_CAMERAS:
