@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- viewport-fit=cover so the map runs under the notch and the home bar, with
+     the chrome inset back off it via env(safe-area-inset-*). -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d0d0d">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="warmap: your wardriving captures and the surveillance cameras around them, on your phone.">
+<title>warmap</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="warmap">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="vendor/leaflet.markercluster/MarkerCluster.css">
+<link rel="stylesheet" href="vendor/leaflet.markercluster/MarkerCluster.Default.css">
+<link rel="stylesheet" href="map.css">
+<link rel="stylesheet" href="app.css">
+<script>
+  // Pull tiles from the PC through this app's own origin rather than straight
+  // from OpenStreetMap: the PC's cache answers most of them, and a service
+  // worker can only cache same-origin responses, so going direct would
+  // silently mean no offline basemap at all. Relative, so it resolves under
+  // the /s/<token>/ path the app is served from.
+  //
+  // In <head> on purpose. It has to run before map.js reads it, and the
+  // single-file offline export copies only <body>, so an export correctly
+  // falls back to fetching OpenStreetMap directly when it has a connection.
+  window.warmapTileUrl = "tiles/{z}/{x}/{y}.png";
+</script>
+</head>
+<body>
+
+<!-- The map fills the window; every other surface floats over it. map.js owns
+     this element and the #legend it writes into, exactly as on the desktop. -->
+<div id="map"></div>
+<div id="legend" class="legend"></div>
+
+<!-- Top bar ------------------------------------------------------------- -->
+<header class="topbar" id="topbar">
+  <button class="icon-btn" id="btn-menu" aria-label="Menu" aria-expanded="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true"></span>
+    <span class="brand-name">warmap</span>
+  </div>
+  <div class="topbar-status" id="status-chip" role="status">
+    <span class="chip-dot" id="status-dot"></span>
+    <span id="status-text">Connecting</span>
+  </div>
+</header>
+
+<!-- Search (slides down from the top bar) -------------------------------- -->
+<div class="searchwrap" id="searchwrap" hidden>
+  <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+  <input id="search" type="search" inputmode="search" autocomplete="off"
+         placeholder="Search name, address, vendor" aria-label="Search records">
+  <button class="icon-btn ghost" id="btn-search-close" aria-label="Close search">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+</div>
+
+<!-- Floating map controls ------------------------------------------------ -->
+<div class="fabs" id="fabs">
+  <button class="fab" id="btn-search" aria-label="Search">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+  </button>
+  <button class="fab" id="btn-layers" aria-label="Layers and filters">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg>
+  </button>
+  <button class="fab" id="btn-fit" aria-label="Fit map to data">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V5a1 1 0 011-1h4M20 9V5a1 1 0 00-1-1h-4M4 15v4a1 1 0 001 1h4M20 15v4a1 1 0 01-1 1h-4"/></svg>
+  </button>
+  <button class="fab accent" id="btn-locate" aria-label="Show my location">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+  </button>
+</div>
+
+<!-- Bottom sheet --------------------------------------------------------- -->
+<section class="sheet" id="sheet" data-state="peek" aria-label="Details">
+  <div class="sheet-grip" id="sheet-grip" role="button" tabindex="0"
+       aria-label="Expand or collapse the panel"><span></span></div>
+
+  <!-- Peek row: always visible, summarises what's on the map -->
+  <div class="sheet-peek" id="sheet-peek">
+    <div class="peek-main">
+      <strong id="peek-count">0</strong>
+      <span id="peek-label">records</span>
+    </div>
+    <div class="peek-sub" id="peek-sub"></div>
+  </div>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab is-active" data-tab="detail" role="tab" aria-selected="true">Selected</button>
+    <button class="tab" data-tab="records" role="tab" aria-selected="false">Records</button>
+    <button class="tab" data-tab="stats" role="tab" aria-selected="false">Stats</button>
+    <button class="tab" data-tab="filters" role="tab" aria-selected="false">Filters</button>
+  </nav>
+
+  <div class="sheet-body" id="sheet-body">
+    <div class="pane is-active" data-pane="detail" role="tabpanel">
+      <div class="empty" id="detail-empty">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.2 7-11a7 7 0 10-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+        <p>Tap anything on the map to see what it is.</p>
+      </div>
+      <div id="detail"></div>
+    </div>
+
+    <div class="pane" data-pane="records" role="tabpanel">
+      <div class="list" id="record-list"></div>
+      <button class="more-btn" id="btn-more" hidden>Show more</button>
+    </div>
+
+    <div class="pane" data-pane="stats" role="tabpanel">
+      <div id="stats"></div>
+    </div>
+
+    <div class="pane" data-pane="filters" role="tabpanel">
+      <div id="filters"></div>
+    </div>
+  </div>
+</section>
+
+<!-- Menu sheet ----------------------------------------------------------- -->
+<div class="scrim" id="scrim" hidden></div>
+<aside class="menu" id="menu" hidden aria-label="Menu">
+  <h2 class="menu-title">warmap</h2>
+  <p class="menu-sub" id="menu-sub">·</p>
+
+  <button class="menu-item" id="btn-sync">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 10-2.3 5.7M20 6v5h-5"/></svg>
+    <span><strong>Sync now</strong><small id="sync-sub">Pull the latest from your PC</small></span>
+  </button>
+
+  <button class="menu-item" id="btn-offline">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M8 11l4 4 4-4"/><path d="M4 19h16"/></svg>
+    <span><strong>Save for offline</strong><small id="offline-sub">Keep the data on this phone</small></span>
+  </button>
+
+  <button class="menu-item" id="btn-theme">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 109 9 7 7 0 01-9-9z"/></svg>
+    <span><strong>Theme</strong><small id="theme-sub">Dark</small></span>
+  </button>
+
+  <div class="menu-foot">
+    <p id="attrib">Map data © OpenStreetMap contributors.</p>
+    <p class="menu-version" id="menu-version"></p>
+  </div>
+</aside>
+
+<div class="toast" id="toast" role="alert" hidden></div>
+
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="vendor/leaflet.markercluster/leaflet.markercluster.js"></script>
+<script src="vendor/leaflet.heat/leaflet-heat.js"></script>
+<script src="map.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

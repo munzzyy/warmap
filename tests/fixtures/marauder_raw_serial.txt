@@ -1,0 +1,72 @@
+
+              @@@@@@                        
+              @@@@@@@@                      
+              @@@@@@@@@@@                   
+             @@@@@@  @@@@@@                 
+          @@@@@@@      @@@@@@@              
+        @@@@@@            @@@@@@            
+     @@@@@@@                @@@@@@@         
+   @@@@@@                      @@@@@@       
+@@@@@@@              @@@@@@@@@@@@@@@@       
+@@@@@                 @@@@@@@@@@@@@@@       
+@@@@@                   @@@@@@@             
+@@@@@                      @@@@@@           
+@@@@@@                       @@@@@@@        
+  @@@@@@                        @@@@@@@@@@@@
+    @@@@@@@                          @@@@@@ 
+       @@@@@@                     @@@@@@    
+         @@@@@@@                @@@@@@      
+            @@@@@@           @@@@@@         
+              @@@@@@@      @@@@@@           
+                 @@@@@@ @@@@@@              
+                   @@@@@@@@@                
+                      @@@@@@                
+                        @@@@                
+
+
+
+
+--------------------------------
+
+         ESP32 Marauder      
+
+            v1.14.0
+
+       By: justcallmekoko
+
+--------------------------------
+
+
+> #stopscan
+Stopping WiFi tran/recv
+> #wardrive
+StartingWardrive. Stop with stopscan
+/wardrive_5.log
+> AP config set error, Maurauder SSID might visible : err=0x3005
+ihoment_H6008_1B2Cd4:ad:fc:0a:1b:2c,,[BLE],,0,-49,0.0000000,0.0000000,0.00,63.75,BLE
+5a:75:65:11:22:335a:75:65:11:22:33,,[BLE],,0,-90,0.0000000,0.0000000,0.00,63.75,BLE
+76:ce:7c:aa:bb:0176:ce:7c:aa:bb:01,,[BLE],,0,-75,0.0000000,0.0000000,0.00,63.75,BLE
+21:37:f8:aa:bb:0221:37:f8:aa:bb:02,,[BLE],,0,-44,0.0000000,0.0000000,0.00,63.75,BLE
+netc4:39:60:44:55:66,,[BLE],,0,-67,0.0000000,0.0000000,0.00,63.75,BLE
+6f:f7:79:aa:bb:036f:f7:79:aa:bb:03,,[BLE],,0,-78,0.0000000,0.0000000,0.00,63.75,BLE
+AP config set error, Maurauder SSID might visible : err=0x3005
+7 | 8E:49:62:77:88:99,,[WPA2_PSK],,36,-68,0.0000000,0.0000000,0.00,63.75,WIFI
+8 | E8:AD:A6:10:20:30,Corner Barber-5G,[WPA2_PSK],,36,-78,0.0000000,0.0000000,0.00,63.75,WIFI
+6b:d8:19:aa:bb:046b:d8:19:aa:bb:04,,[BLE],,0,-58,0.0000000,0.0000000,0.00,63.75,BLE
+3f:2c:76:aa:bb:053f:2c:76:aa:bb:05,,[BLE],,0,-95,0.0000000,0.0000000,0.00,63.75,BLE
+4f:37:3d:aa:bb:064f:37:3d:aa:bb:06,,[BLE],,0,-94,0.0000000,0.0000000,0.00,63.75,BLE
+12 | E8:AD:A6:10:20:2F,Corner Barber-2G,[WPA2_PSK],,11,-61,0.0000000,0.0000000,0.00,63.75,WIFI
+13 | EC:AD:E0:40:50:60,frontdesk,[WPA_WPA2_PSK],,6,-91,0.0000000,0.0000000,0.00,63.75,WIFI
+AP config set error, Maurauder SSID might visible : err=0x3005
+71:b0:30:aa:bb:0771:b0:30:aa:bb:07,,[BLE],,0,-86,0.0000000,0.0000000,0.00,63.75,BLE
+AP config set error, Maurauder SSID might visible : err=0x3005
+cc:95:b3:aa:bb:08cc:95:b3:aa:bb:08,,[BLE],,0,-85,0.0000000,0.0000000,0.00,63.75,BLE
+AP config set error, Maurauder SSID might visible : err=0x3005
+16 | B8:86:87:70:80:90,,[WPA2_PSK],,11,-58,0.0000000,0.0000000,0.00,63.75,WIFI
+17 | 74:37:5F:AA:BB:CC,MapleHome,[WPA2_PSK],,6,-91,0.0000000,0.0000000,0.00,63.75,WIFI
+AP config set error, Maurauder SSID might visible : err=0x3005
+AP config set error, Maurauder SSID might visible : err=0x3005
+7d:d9:90:aa:bb:097d:d9:90:aa:bb:09,,[BLE],,0,-81,0.0000000,0.0000000,0.00,63.75,BLE
+AP config set error, Maurauder SSID might visible : err=0x3005
+AP config set error, Maurauder SSID might visible : err=0x3005
+57:72:e2:aa:bb:0a57:72:e2:aa:bb:0a,,[BLE],,0,-71,0.0000000,0.0000000,0.00,63.75,BLE

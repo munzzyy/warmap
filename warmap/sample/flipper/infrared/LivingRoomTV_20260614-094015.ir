@@ -1,0 +1,20 @@
+Filetype: IR signals file
+Version: 1
+#
+name: Power
+type: parsed
+protocol: NEC
+address: 04 00 00 00
+command: 08 00 00 00
+#
+name: Vol_up
+type: parsed
+protocol: NEC
+address: 04 00 00 00
+command: 10 00 00 00
+#
+name: Source
+type: raw
+frequency: 38000
+duty_cycle: 0.330000
+data: 8964 4432 559 1671 558 559 558 1671 559 558

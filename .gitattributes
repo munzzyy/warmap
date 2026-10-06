@@ -1,0 +1,9 @@
+* text=auto eol=lf
+*.png binary
+*.pcap binary
+*.pcapng binary
+*.ico binary
+*.icns binary
+warmap/sample/** -text
+tests/fixtures/** -text
+warmap/web/vendor/** -text

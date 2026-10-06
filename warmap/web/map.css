@@ -1,0 +1,248 @@
+html, body, #map {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: #0d0d0d;
+}
+
+.legend {
+  position: absolute;
+  bottom: 24px;
+  left: 10px;
+  z-index: 1000;
+  background: rgba(20, 20, 20, 0.85);
+  color: #f0f0f0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: 12px/1.4 sans-serif;
+  /* Leave the bottom of the map clear and never take more than half its
+     width. On a window too short for this the legend starts collapsed
+     instead (see map.js), which is the case that actually needed solving. */
+  max-height: calc(100% - 80px);
+  overflow-y: auto;
+  min-width: 130px;
+  max-width: 45%;
+}
+
+.legend-head {
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  user-select: none;
+}
+
+.legend-head .legend-toggle {
+  color: #9a9a9a;
+}
+
+.legend-head + .legend-title {
+  margin-top: 6px;
+}
+
+.legend-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.legend-title + .legend-title,
+.legend-row + .legend-title {
+  margin-top: 8px;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-count {
+  color: #9a9a9a;
+}
+
+.legend-note {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  color: #9a9a9a;
+  font-size: 11px;
+  line-height: 1.35;
+  max-width: 200px;
+}
+
+/* A note that belongs to the section above it, not a footer for the whole
+   legend: no rule above it, and it sits tight under its own rows. */
+.legend-subnote {
+  margin-top: 4px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  flex: none;
+}
+
+/* Matches the dashed, half-transparent marker used for a record whose
+   position was inferred from the GPS track rather than recorded. */
+.legend-swatch[data-dashed] {
+  background: transparent;
+  border: 2px dashed rgba(255, 255, 255, 0.75);
+}
+
+.warmap-popup .wp-title {
+  font-weight: 600;
+  margin-bottom: 1px;
+  font-size: 13px;
+}
+
+.warmap-popup .wp-type {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 5px;
+}
+
+.warmap-popup table {
+  border-collapse: collapse;
+  font-size: 12px;
+  max-width: 340px;
+}
+
+.warmap-popup td {
+  padding: 1px 6px 1px 0;
+  vertical-align: top;
+}
+
+.warmap-popup td:first-child {
+  color: #666;
+  white-space: nowrap;
+}
+
+.warmap-popup td:last-child {
+  word-break: break-word;
+}
+
+.warmap-popup .wp-note {
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  font-size: 11px;
+  font-style: italic;
+  color: #666;
+  max-width: 320px;
+}
+
+.warmap-popup .wp-warn {
+  margin-top: 6px;
+  padding: 5px 7px;
+  border-radius: 4px;
+  background: rgba(224, 36, 36, 0.12);
+  border: 1px solid rgba(224, 36, 36, 0.55);
+  color: #b31212;
+  font-size: 11px;
+  font-weight: 600;
+  max-width: 320px;
+}
+
+.warmap-cluster div {
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.15);
+}
+
+/* Glyph markers for the Flipper record types: Sub-GHz, NFC, RFID, iButton,
+   infrared. Low enough in count that a DOM marker each is affordable, and
+   distinguishable without opening the popup. */
+.warmap-glyph .wg-inner {
+  width: 22px;
+  height: 22px;
+  line-height: 22px;
+  border-radius: 5px;
+  color: #fff;
+  text-align: center;
+  font: 600 11px/22px sans-serif;
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.warmap-glyph.warmap-inferred .wg-inner {
+  opacity: 0.55;
+  border-style: dashed;
+  border-width: 2px;
+}
+
+/* ALPR / Flock camera overlay. A dot at the pole with a wedge per facing, so
+   which way a camera looks is readable at a glance. The dot sits above the
+   wedges; each wedge is a triangle whose base is pinned at the dot's center
+   (transform-origin) and rotated by the camera's bearing (0deg = up = north,
+   matching OSM's `direction`). */
+.warmap-alpr {
+  background: none;
+  border: none;
+}
+
+.alpr-icon {
+  position: relative;
+  width: 26px;
+  height: 26px;
+}
+
+.alpr-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  margin-left: -5.5px;
+  margin-top: -5.5px;
+  border-radius: 50%;
+  background: #7b2fb5;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  z-index: 2;
+}
+
+.warmap-alpr-flock .alpr-dot {
+  background: #7b2fb5;
+  box-shadow: 0 0 0 1px rgba(123, 47, 181, 0.5), 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.alpr-wedge {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  margin-left: -7px;
+  margin-top: -15px;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 15px solid rgba(123, 47, 181, 0.55);
+  transform-origin: 50% 100%;
+  z-index: 1;
+}
+
+.warmap-alpr-cluster div {
+  box-shadow: 0 0 0 2px rgba(123, 47, 181, 0.25);
+}
+
+/* A dark basemap when the host says it's in dark mode (the desktop passes
+   ?theme=, the mobile app sets the attribute). OpenStreetMap's raster tiles
+   only come in the light style, and a white map inside a dark window reads as
+   two different apps. It's also worse to look at in a car at night, which is
+   when this gets used. Inverting and rotating the hue back turns the light
+   tiles into a dark style: roads and labels go light-on-dark while greens and
+   blues land near where they started.
+
+   Only the tile pane is filtered. Every marker, direction wedge, follower ring
+   and track keeps its real color, because those encode data and must mean the
+   same thing in both themes. */
+:root[data-theme="dark"] .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.92) saturate(0.85);
+}

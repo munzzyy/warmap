@@ -1,0 +1,33 @@
+name: Something is wrong
+description: A file that will not load, a capture in the wrong place, a crash.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you saw, what you expected instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The output of `warmap --version`, and your OS and Python version.
+      placeholder: warmap 1.0.0, Fedora 42, Python 3.13
+    validations:
+      required: true
+  - type: textarea
+    id: file
+    attributes:
+      label: The file, if one is involved
+      description: >
+        The output of `warmap inspect <file>` is usually enough and carries no
+        coordinates. If you attach the capture itself, remember it holds your
+        route and your neighbours' network names.
+  - type: textarea
+    id: output
+    attributes:
+      label: Terminal output
+      description: Anything printed when you ran it from a terminal.
+      render: text
