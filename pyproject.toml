@@ -30,7 +30,7 @@ classifiers = [
 dependencies = ["PySide6>=6.6"]
 
 [project.optional-dependencies]
-dev = ["pytest>=7"]
+dev = ["pytest>=9.1.1"]
 icons = ["Pillow>=9"]
 
 [project.scripts]
