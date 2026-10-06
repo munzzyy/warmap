@@ -31,7 +31,7 @@ dependencies = ["PySide6>=6.6"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7"]
-icons = ["Pillow>=9"]
+icons = ["Pillow>=12.3.0"]
 
 [project.scripts]
 warmap = "warmap.cli:main"
